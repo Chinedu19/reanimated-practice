@@ -1,104 +1,163 @@
-import { SafeAreaView, Platform, Text, StyleSheet, View } from "react-native";
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  Platform,
+  Text,
+  StyleSheet,
+  View,
+  Button,
+  ImageBackground,
+  Dimensions,
+  TouchableOpacity,
+} from "react-native";
 import Contants from "expo-constants";
 import "react-native-reanimated";
-import "react-native-gesture-handler";
-import CardList from "./components/CardList";
+// import "react-native-gesture-handler";
 import Animated, {
   useAnimatedGestureHandler,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withSequence,
+  withTiming,
+  withRepeat,
+  withDelay,
+  runOnJS,
+  useDerivedValue,
+  useAnimatedScrollHandler,
+  interpolate,
+  Extrapolate,
 } from "react-native-reanimated";
 import {
   GestureHandlerRootView,
   TapGestureHandler,
   PanGestureHandler,
 } from "react-native-gesture-handler";
+
+const WORDS = ["What's", "Up", "Mobile", "Devs?"];
+
 export default function App() {
-  const startingPoint = 100;
-  const pressed = useSharedValue(false);
-
-  const ball1x = useSharedValue(startingPoint);
-  const ball1y = useSharedValue(startingPoint);
-
-  const ball1EventHandler = useAnimatedGestureHandler({
-    onStart: (event, ctx) => {
-      pressed.value = true;
-      (ctx.x = ball1x.value), (ctx.y = ball1y.value);
-    },
-    onActive: (event, ctx) => {
-      ball1x.value = ctx.x + event.translationX;
-      ball1y.value = ctx.y + event.translationY;
-    },
-    onEnd: (event, ctx) => {
-      pressed.value = false;
-      // x.value = withSpring(startingPoint);
-      // y.value = withSpring(startingPoint);
-    },
-  });
-  const ballAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      backgroundColor: pressed.value ? "yellow" : "blue",
-      transform: [
-        // {
-        //   scale: withSpring(pressed.value ? 1.2 : 1),
-        // },
-        { translateX: ball1x.value },
-        { translateY: ball1y.value },
-      ],
-    };
-  });
-  const ball2Animation = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { translateX: withSpring(ball1x.value - 50) },
-        { translateY: withSpring(ball1y.value - 150) },
-      ],
-    };
-  });
-  const ball3Animation = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { translateX: withSpring(ball1x.value - 50) },
-        { translateY: withSpring(ball1y.value - 140) },
-      ],
-    };
+  const translateX = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    const xOffest = event.contentOffset.x;
+    translateX.value = xOffest;
   });
   return (
-    <GestureHandlerRootView>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView
         style={{
           paddingTop: Platform.OS === "android" ? Contants.statusBarHeight : 0,
+          alignItems: "center",
+          justifyContent: "center",
+          flex: 1,
         }}
       >
-        {/* <CardList /> */}
-        <Text>Smooth</Text>
-
-        <PanGestureHandler
-          numberOfTaps={1}
-          maxDurationMs={1000}
-          maxDeltaX={50}
-          maxDeltaY={50}
-          minPointers={1}
-          maxPointers={1}
-          onGestureEvent={ball1EventHandler}
+        <Animated.ScrollView
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          horizontal
+          pagingEnabled
         >
-          <Animated.View style={[styles.ball, ballAnimatedStyle]} />
-        </PanGestureHandler>
-
-        <Animated.View style={[styles.ball, ball2Animation]} />
-        <Animated.View style={[styles.ball, ball3Animation]} />
-        {/* <Animated.View style={[styles.ball, ballAnimatedStyle]} /> */}
+          {WORDS.map((item, index) => (
+            <Page
+              title={item}
+              index={index}
+              translateX={translateX}
+              key={index.toString()}
+            />
+          ))}
+        </Animated.ScrollView>
       </SafeAreaView>
     </GestureHandlerRootView>
   );
 }
 
+const { width, height } = Dimensions.get("window");
+
+const SIZE = width * 0.7;
+
+const Page = ({ title, index, translateX }) => {
+  // console.log(index + 1, "--page");
+  // console.log((index - 1) * width, "--min");
+  // console.log(index * width, "--median");
+  // console.log((index + 1) * width, "--max");
+
+  const inputRange = [(index - 1) * width, index * width, (index + 1) * width];
+
+  const rStyle = useAnimatedStyle(() => {
+    const scale = interpolate(
+      translateX.value,
+      inputRange,
+      [0, 1, 0],
+      Extrapolate.CLAMP
+    );
+    const borderRadius = interpolate(
+      translateX.value,
+      inputRange,
+      [0, SIZE / 2, 0],
+      Extrapolate.CLAMP
+    );
+
+    return {
+      transform: [{ scale }],
+      borderRadius: borderRadius,
+    };
+  });
+
+  const textReanimatedStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      translateX.value,
+      inputRange,
+      [-2, 1, -2],
+      Extrapolate.CLAMP
+    );
+
+    const translateY = interpolate(
+      translateX.value,
+      inputRange,
+      [height / 2, 0, -height / 2],
+      Extrapolate.CLAMP
+    );
+
+    return {
+      opacity,
+      transform: [{ translateY: translateY }],
+    };
+  });
+  return (
+    <View
+      style={[
+        styles.pageContainer,
+        { backgroundColor: `rgba(0,0,255, 0.${index + 2})` },
+      ]}
+    >
+      <Animated.View style={[styles.square, rStyle]} />
+      <Animated.View style={[styles.textView, textReanimatedStyle]}>
+        <Text style={styles.text}>{title}</Text>
+      </Animated.View>
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
-  ball: {
-    height: 200,
-    width: 200,
-    borderRadius: 100,
-    backgroundColor: "blue",
+  pageContainer: {
+    height,
+    width,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  square: {
+    width: SIZE,
+    height: SIZE,
+    backgroundColor: "rgba(0,0,255, 0.4)",
+  },
+  textView: {
+    position: "absolute",
+  },
+  text: {
+    fontWeight: "700",
+    fontSize: 50,
+    color: "#fff",
+    textAlign: "center",
   },
 });
